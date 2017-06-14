@@ -430,7 +430,9 @@ class GameWindow(pyglet.window.Window):
 
 
 if __name__ == '__main__':
-    mainscene = Scene(batch=pyglet.graphics.Batch(), texture=pyglet.resource.texture("texture.png"))
+    texture = pyglet.resource.texture("texture.png")
+    mainscene = Scene(batch=pyglet.graphics.Batch(), texture=texture)
+    setup_gl()
     window = GameWindow(scene=mainscene, width=960, height=580, caption='PyCraft', resizable=True)
     window.set_exclusive_mouse(True)
     setup_gl()

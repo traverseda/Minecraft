@@ -4,6 +4,7 @@ import time
 
 from collections import deque
 from utilities.graphics import *
+from extlibs import esper
 
 
 GRASS = tex_coords((1, 0), (0, 1), (0, 0))
@@ -19,11 +20,51 @@ FACES = [(0, 1, 0),
          (0, 0, -1)]
 
 
+def generate_blocks():
+
+    generated_blocks = []
+
+    n = 80  # 1/2 width and height of world
+    s = 1  # step size
+    y = 0  # initial y height
+    for x in range(-n, n + 1, s):
+        for z in range(-n, n + 1, s):
+            # create a layer stone an grass everywhere.
+            generated_blocks.append(((x, y - 2, z), GRASS))
+            generated_blocks.append(((x, y - 3, z), STONE))
+            if x in (-n, n) or z in (-n, n):
+                # create outer walls.
+                for dy in range(-2, 3):
+                    generated_blocks.append(((x, y + dy, z), STONE))
+
+    # generate the hills randomly
+    o = n - 10
+    for _ in range(120):
+        a = random.randint(-o, o)  # x position of the hill
+        b = random.randint(-o, o)  # z position of the hill
+        c = -1  # base of the hill
+        h = random.randint(1, 6)  # height of the hill
+        s = random.randint(4, 8)  # 2 * s is the side length of the hill
+        d = 1  # how quickly to taper off the hills
+        t = random.choice([GRASS, SAND, BRICK])
+        for y in range(c, c + h):
+            for x in range(a - s, a + s + 1):
+                for z in range(b - s, b + s + 1):
+                    if (x - a) ** 2 + (z - b) ** 2 > (s + 1) ** 2:
+                        continue
+                    if (x - 0) ** 2 + (z - 0) ** 2 < 5 ** 2:
+                        continue
+                    generated_blocks.append(((x, y, z), t))
+            s -= d  # decrement side lenth so hills taper off
+    return generated_blocks
+
+
 class Scene(object):
     def __init__(self, batch, texture, fps=60):
         self.batch = batch
         self.texture = texture
         self.fps = fps
+        self.world = esper.World()
 
         self.group = pyglet.graphics.TextureGroup(self.texture)
 
@@ -40,44 +81,9 @@ class Scene(object):
         # _show_block() and _hide_block() calls
         self.queue = deque()
 
-        self._initialize()
-
-    def _initialize(self):
-        """ Initialize the world by placing all the blocks.
-
-        """
-        n = 80  # 1/2 width and height of world
-        s = 1  # step size
-        y = 0  # initial y height
-        for x in range(-n, n + 1, s):
-            for z in range(-n, n + 1, s):
-                # create a layer stone an grass everywhere.
-                self.add_block((x, y - 2, z), GRASS, immediate=False)
-                self.add_block((x, y - 3, z), STONE, immediate=False)
-                if x in (-n, n) or z in (-n, n):
-                    # create outer walls.
-                    for dy in range(-2, 3):
-                        self.add_block((x, y + dy, z), STONE, immediate=False)
-
-        # generate the hills randomly
-        o = n - 10
-        for _ in range(120):
-            a = random.randint(-o, o)   # x position of the hill
-            b = random.randint(-o, o)   # z position of the hill
-            c = -1                      # base of the hill
-            h = random.randint(1, 6)    # height of the hill
-            s = random.randint(4, 8)    # 2 * s is the side length of the hill
-            d = 1                       # how quickly to taper off the hills
-            t = random.choice([GRASS, SAND, BRICK])
-            for y in range(c, c + h):
-                for x in range(a - s, a + s + 1):
-                    for z in range(b - s, b + s + 1):
-                        if (x - a) ** 2 + (z - b) ** 2 > (s + 1) ** 2:
-                            continue
-                        if (x - 0) ** 2 + (z - 0) ** 2 < 5 ** 2:
-                            continue
-                        self.add_block((x, y, z), t, immediate=False)
-                s -= d  # decrement side lenth so hills taper off
+        random_blocks = generate_blocks()
+        for pos, texture in random_blocks:
+            self.add_block(pos, texture, immediate=False)
 
     def hit_test(self, position, vector, max_distance=8):
         """ Line of sight search from current position. If a block is
