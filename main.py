@@ -76,10 +76,6 @@ class GameWindow(pyglet.window.Window):
         self.num_keys = [key._1, key._2, key._3, key._4, key._5,
                          key._6, key._7, key._8, key._9, key._0]
 
-        # The label that is displayed in the top left of the canvas.
-        self.label = pyglet.text.Label('', font_name='Arial', font_size=18,
-                                       x=10, y=self.height - 10, anchor_x='left', anchor_y='top',
-                                       color=(0, 0, 0, 255))
 
     def set_exclusive_mouse(self, exclusive):
         """ If `exclusive` is True, the game will capture the mouse, if False
@@ -295,8 +291,6 @@ class GameWindow(pyglet.window.Window):
 
     def on_resize(self, width, height):
         """ Called when the window is resized to a new `width` and `height`. """
-        # label
-        self.label.y = height - 10
         # reticle
         if self.reticle:
             self.reticle.delete()
@@ -319,14 +313,6 @@ class GameWindow(pyglet.window.Window):
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             pyglet.graphics.draw(24, GL_QUADS, ('v3f/static', vertex_data))
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-
-    def draw_label(self):
-        """ Draw the label in the top left of the screen. """
-        x, y, z = self.position
-        self.label.text = '%02d (%.2f, %.2f, %.2f) %d / %d' % (
-            pyglet.clock.get_fps(), x, y, z,
-            len(self.scene._shown_vlists), len(self.scene.all_blocks))
-        self.label.draw()
 
     def draw_reticle(self):
         """ Draw the crosshairs in the center of the screen.
@@ -353,24 +339,17 @@ def on_draw():
     width, height = window.get_size()
     set_3d(width, height, window.rotation, window.position)
     glColor3d(1, 1, 1)
-    batch.draw()
 
-    window.draw_focused_block()
+    batch.draw()
+    # window.draw_focused_block()
 
     set_2d(width, height)
-    window.draw_label()
     window.draw_reticle()
 
 
 def update(dt):
     mainscene.process(dt)
 
-    sector = sectorize(window.position)
-    if sector != window.sector:
-        mainscene.change_sectors(window.sector, sector)
-        if window.sector is None:
-            mainscene.process_entire_queue()
-        window.sector = sector
     m = 8
     dt = min(dt, 0.2)
 
@@ -390,10 +369,11 @@ def update(dt):
             window.dy -= dt8 * GRAVITY
             window.dy = max(window.dy, -TERMINAL_VELOCITY)
             dy += window.dy * dt8
-        # collisions
-        x, y, z = window.position
-        x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
-        window.position = (x, y, z)
+
+        # # collisions
+        # x, y, z = window.position
+        # x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
+        # window.position = (x, y, z)
 
 
 if __name__ == '__main__':

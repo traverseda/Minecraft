@@ -1,15 +1,16 @@
 from pyglet.gl import *
+from utilities.maths import cube_vertices
 
 
 class Player:
     pass
 
 
-class Visible:
+class Show:
     pass
 
 
-class Invisible:
+class Hide:
     pass
 
 
@@ -18,7 +19,12 @@ class Block:
         self.position = position
         self.block_type = block_type
         self.tex_coords = tex_coords
+        self.vertices = cube_vertices(*position, 0.5)
         self.vertex_list = None
+
+
+class Body:
+    pass
 
 
 class Vector:
