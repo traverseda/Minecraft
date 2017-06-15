@@ -384,6 +384,10 @@ def update(dt):
     #     x, y, z = window.position
     #     x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
     #     window.position = (x, y, z)
+    window.switch_to()                                                               
+    window.dispatch_events()                                                         
+    window.dispatch_event('on_draw')                                                 
+    window.flip()
 
 async def updateLoop():
     lastFrameTime=time.time()
