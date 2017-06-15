@@ -61,74 +61,45 @@ def random_block_generator(size=160):
 
 
 class Scene:
-    def __init__(self, batch, texture, fps=60):
-        self.fps = fps
+    def __init__(self, window, batch, fps=60):
+        self.window = window
         self.batch = batch
-        self.texture = texture
+        self.fps = fps
+        self.texture = pyglet.resource.texture("texture.png")
         self.group = pyglet.graphics.TextureGroup(self.texture)
         self.world = ecs.World()
 
         self.world.add_processor(BlockExposeProcessor(batch=self.batch, group=self.group), priority=99)
 
-        for pos, texture in random_block_generator():
+        for pos, texture in random_block_generator(33):
             self.world.create_entity(Show(), Block(position=pos, block_type=" ", tex_coords=texture))
 
-    def hit_test(self, position, vector, max_distance=8):
-        """ Line of sight search from current position. If a block is
-        intersected it is returned, along with the block previously in the line
-        of sight. If no block is found, return None, None.
-
-        Parameters
-        ----------
-        position : tuple of len 3
-            The (x, y, z) position to check visibility from.
-        vector : tuple of len 3
-            The line of sight vector.
-        max_distance : int
-            How many blocks away to search for a hit.
-
-        """
-        m = 8
-        x, y, z = position
-        dx, dy, dz = vector
-        previous = None
-        for _ in range(max_distance * m):
-            key = normalize((x, y, z))
-            if key != previous and key in self.all_blocks:
-                return key, previous
-            previous = key
-            x, y, z = x + dx / m, y + dy / m, z + dz / m
-        return None, None
-
-    # def exposed(self, position):
-    #     """ Returns False is given `position` is surrounded on all 6 sides by
-    #     blocks, True otherwise.
+    # def hit_test(self, position, vector, max_distance=8):
+    #     """ Line of sight search from current position. If a block is
+    #     intersected it is returned, along with the block previously in the line
+    #     of sight. If no block is found, return None, None.
+    #
+    #     Parameters
+    #     ----------
+    #     position : tuple of len 3
+    #         The (x, y, z) position to check visibility from.
+    #     vector : tuple of len 3
+    #         The line of sight vector.
+    #     max_distance : int
+    #         How many blocks away to search for a hit.
     #
     #     """
+    #     m = 8
     #     x, y, z = position
-    #     for dx, dy, dz in FACES:
-    #         if (x + dx, y + dy, z + dz) not in self.all_blocks:
-    #             return True
-    #     return False
-
-    # def check_neighbors(self, position):
-    #     """ Check all blocks surrounding `position` and ensure their visual
-    #     state is current. This means hiding blocks that are not exposed and
-    #     ensuring that all exposed blocks are shown. Usually used after a block
-    #     is added or removed.
-    #
-    #     """
-    #     x, y, z = position
-    #     for dx, dy, dz in FACES:
-    #         key = (x + dx, y + dy, z + dz)
-    #         if key not in self.all_blocks:
-    #             continue
-    #         if self.exposed(key):
-    #             if key not in self.shown_blocks:
-    #                 self.show_block(key)
-    #         else:
-    #             if key in self.shown_blocks:
-    #                 self.hide_block(key)
+    #     dx, dy, dz = vector
+    #     previous = None
+    #     for _ in range(max_distance * m):
+    #         key = normalize((x, y, z))
+    #         if key != previous and key in self.all_blocks:
+    #             return key, previous
+    #         previous = key
+    #         x, y, z = x + dx / m, y + dy / m, z + dz / m
+    #     return None, None
 
     def process(self, dt):
         self.world.process(dt)
