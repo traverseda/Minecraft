@@ -4,8 +4,8 @@ from pyglet.gl import *
 from pyglet.window import key, mouse
 from gamescenes import *
 
-from utilities.graphics import cube_vertices, tex_coords, sectorize, normalize
-from utilities.graphics import setup_gl, setup_fog
+from utilities.maths import cube_vertices, sectorize, normalize
+from utilities.graphics import setup_gl, setup_fog, set_2d, set_3d
 
 
 pyglet.resource.path.append("resources")
@@ -13,8 +13,6 @@ pyglet.resource.path.append("resources")
 TICKS_PER_SEC = 60
 
 # Size of sectors used to ease block loading.
-SECTOR_SIZE = 16
-
 WALKING_SPEED = 5
 FLYING_SPEED = 15
 
@@ -146,47 +144,6 @@ class GameWindow(pyglet.window.Window):
             dx = 0.0
             dz = 0.0
         return dx, dy, dz
-
-    def update(self, dt):
-        """ This method is scheduled to be called repeatedly by the pyglet
-        clock.
-
-        Parameters
-        ----------
-        dt : float
-            The change in time since the last call.
-
-        """
-        self.scene.process_queue()
-        sector = sectorize(self.position)
-        if sector != self.sector:
-            self.scene.change_sectors(self.sector, sector)
-            if self.sector is None:
-                self.scene.process_entire_queue()
-            self.sector = sector
-        m = 8
-        dt = min(dt, 0.2)
-
-        for _ in range(m):
-            dt8 = dt / m
-            # walking
-            speed = FLYING_SPEED if self.flying else WALKING_SPEED
-            d = dt8 * speed  # distance covered this tick.
-            dx, dy, dz = self.get_motion_vector()
-            # New position in space, before accounting for gravity.
-            dx, dy, dz = dx * d, dy * d, dz * d
-            # gravity
-            if not self.flying:
-                # Update your vertical speed: if you are falling, speed up until you
-                # hit terminal velocity; if you are jumping, slow down until you
-                # start falling.
-                self.dy -= dt8 * GRAVITY
-                self.dy = max(self.dy, -TERMINAL_VELOCITY)
-                dy += self.dy * dt8
-            # collisions
-            x, y, z = self.position
-            x, y, z = self.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
-            self.position = (x, y, z)
 
     def collide(self, position, height):
         """ Checks to see if the player at the given `position` and `height`
@@ -337,9 +294,7 @@ class GameWindow(pyglet.window.Window):
             self.strafe[1] -= 1
 
     def on_resize(self, width, height):
-        """ Called when the window is resized to a new `width` and `height`.
-
-        """
+        """ Called when the window is resized to a new `width` and `height`. """
         # label
         self.label.y = height - 10
         # reticle
@@ -349,52 +304,6 @@ class GameWindow(pyglet.window.Window):
         n = 10
         self.reticle = pyglet.graphics.vertex_list(
             4, ('v2i', (x - n, y, x + n, y, x, y - n, x, y + n)))
-
-    def set_2d(self):
-        """ Configure OpenGL to draw in 2d.
-
-        """
-        width, height = self.get_size()
-        glDisable(GL_DEPTH_TEST)
-        glViewport(0, 0, width, height)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(0, width, 0, height, -1, 1)
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-
-    def set_3d(self):
-        """ Configure OpenGL to draw in 3d.
-
-        """
-        width, height = self.get_size()
-        glEnable(GL_DEPTH_TEST)
-        glViewport(0, 0, width, height)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(65.0, width / float(height), 0.1, 60.0)
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        x, y = self.rotation
-        glRotatef(x, 0, 1, 0)
-        glRotatef(-y, math.cos(math.radians(x)), 0, math.sin(math.radians(x)))
-        x, y, z = self.position
-        glTranslatef(-x, -y, -z)
-
-    def on_draw(self):
-        """ Called by pyglet to draw the canvas.
-
-        """
-        self.clear()
-
-        self.set_3d()
-        glColor3d(1, 1, 1)
-        self.scene.batch.draw()
-        self.draw_focused_block()
-
-        self.set_2d()
-        self.draw_label()
-        self.draw_reticle()
 
     def draw_focused_block(self):
         """ Draw black edges around the block that is currently under the
@@ -412,9 +321,7 @@ class GameWindow(pyglet.window.Window):
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
     def draw_label(self):
-        """ Draw the label in the top left of the screen.
-
-        """
+        """ Draw the label in the top left of the screen. """
         x, y, z = self.position
         self.label.text = '%02d (%.2f, %.2f, %.2f) %d / %d' % (
             pyglet.clock.get_fps(), x, y, z,
@@ -429,13 +336,66 @@ class GameWindow(pyglet.window.Window):
         self.reticle.draw(GL_LINES)
 
 
+batch = pyglet.graphics.Batch()
+texture = pyglet.resource.texture("texture.png")
+mainscene = Scene(batch=batch, texture=texture)
+setup_gl()
+window = GameWindow(scene=mainscene, width=960, height=580, caption='PyCraft', resizable=True)
+window.set_exclusive_mouse(True)
+setup_gl()
+setup_fog()
+
+
+@window.event
+def on_draw():
+    window.clear()
+
+    width, height = window.get_size()
+    set_3d(width, height, window.rotation, window.position)
+    glColor3d(1, 1, 1)
+    batch.draw()
+
+    window.draw_focused_block()
+
+    set_2d(width, height)
+    window.draw_label()
+    window.draw_reticle()
+
+
+def update(dt):
+    mainscene.process(dt)
+
+    sector = sectorize(window.position)
+    if sector != window.sector:
+        mainscene.change_sectors(window.sector, sector)
+        if window.sector is None:
+            mainscene.process_entire_queue()
+        window.sector = sector
+    m = 8
+    dt = min(dt, 0.2)
+
+    for _ in range(m):
+        dt8 = dt / m
+        # walking
+        speed = FLYING_SPEED if window.flying else WALKING_SPEED
+        d = dt8 * speed  # distance covered this tick.
+        dx, dy, dz = window.get_motion_vector()
+        # New position in space, before accounting for gravity.
+        dx, dy, dz = dx * d, dy * d, dz * d
+        # gravity
+        if not window.flying:
+            # Update your vertical speed: if you are falling, speed up until you
+            # hit terminal velocity; if you are jumping, slow down until you
+            # start falling.
+            window.dy -= dt8 * GRAVITY
+            window.dy = max(window.dy, -TERMINAL_VELOCITY)
+            dy += window.dy * dt8
+        # collisions
+        x, y, z = window.position
+        x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
+        window.position = (x, y, z)
+
+
 if __name__ == '__main__':
-    texture = pyglet.resource.texture("texture.png")
-    mainscene = Scene(batch=pyglet.graphics.Batch(), texture=texture)
-    setup_gl()
-    window = GameWindow(scene=mainscene, width=960, height=580, caption='PyCraft', resizable=True)
-    window.set_exclusive_mouse(True)
-    setup_gl()
-    setup_fog()
-    pyglet.clock.schedule_interval(window.update, 1.0 / TICKS_PER_SEC)
+    pyglet.clock.schedule_interval(update, 1.0 / TICKS_PER_SEC)
     pyglet.app.run()

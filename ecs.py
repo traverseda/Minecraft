@@ -3,6 +3,9 @@ import time
 from functools import lru_cache
 
 
+"""This module is a condensed version of the 'esper' ECS library."""
+
+
 class Processor:
     def __init__(self):
         self.world = None
@@ -37,10 +40,10 @@ class World:
         """Add a Processor instance to the World.
 
         :param processor_instance: An instance of a Processor,
-        subclassed from the esper.Processor class
+        subclassed from the Processor class
         :param priority: A higher number is processed first.
         """
-        assert issubclass(processor_instance.__class__, esper.Processor)
+        assert issubclass(processor_instance.__class__, Processor)
         processor_instance.priority = priority
         processor_instance.world = self
         self._processors.append(processor_instance)
@@ -288,10 +291,10 @@ class CachedWorld:
         """Add a Processor instance to the World.
 
         :param processor_instance: An instance of a Processor,
-        subclassed from the esper.Processor class
+        subclassed from the Processor class
         :param priority: A higher number is processed first.
         """
-        assert issubclass(processor_instance.__class__, esper.Processor)
+        assert issubclass(processor_instance.__class__, Processor)
         processor_instance.priority = priority
         processor_instance.world = self
         self._processors.append(processor_instance)

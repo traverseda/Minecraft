@@ -1,10 +1,10 @@
-import pyglet
 import ecs
 import random
 import time
 
 from collections import deque
-from utilities.graphics import *
+from utilities.maths import *
+from processors import *
 
 
 GRASS = tex_coords((1, 0), (0, 1), (0, 0))
@@ -20,8 +20,9 @@ FACES = [(0, 1, 0),
          (0, 0, -1)]
 
 
-def generate_blocks(size=160):
+def random_block_generator(size=160):
 
+    size = min(20, size)    # minimum size for this randomizer
     n = size // 2           # 1/2 width and height of world
     s = 1                   # step size
     y = 0                   # initial y height
@@ -59,14 +60,15 @@ def generate_blocks(size=160):
             s -= d                      # decrement side lenth so hills taper off:
 
 
-class Scene(object):
+class Scene:
     def __init__(self, batch, texture, fps=60):
+        self.fps = fps
         self.batch = batch
         self.texture = texture
-        self.fps = fps
+        self.group = pyglet.graphics.TextureGroup(self.texture)
         self.world = ecs.World()
 
-        self.group = pyglet.graphics.TextureGroup(self.texture)
+        self.world.add_processor(BlockExposeProcessor(batch=self.batch))
 
         # A mapping from position to the texture of the block at that position.
         # This defines all the blocks that are currently in the world.
@@ -81,8 +83,15 @@ class Scene(object):
         # _show_block() and _hide_block() calls
         self.queue = deque()
 
-        for pos, texture in generate_blocks(50):
+        # all_blocks = Block
+        # shown_blocks = Block + Visible
+        # _shown_vlist = ?
+        # sectors = ?
+
+        for pos, texture in random_block_generator():
             self.add_block(pos, texture, immediate=False)
+            self.world.create_entity(Invisible(),
+                                     Block(position=pos, block_type=" ", tex_coords=texture))
 
     def hit_test(self, position, vector, max_distance=8):
         """ Line of sight search from current position. If a block is
@@ -138,6 +147,7 @@ class Scene(object):
         """
         if position in self.all_blocks:
             self.remove_block(position, immediate)
+
         self.all_blocks[position] = texture
         self.sectors.setdefault(sectorize(position), []).append(position)
         if immediate:
@@ -194,12 +204,12 @@ class Scene(object):
             Whether or not to show the block immediately.
 
         """
-        texture = self.all_blocks[position]
-        self.shown_blocks[position] = texture
+        texture_coords = self.all_blocks[position]
+        self.shown_blocks[position] = texture_coords
         if immediate:
-            self._show_block(position, texture)
+            self._show_block(position, texture_coords)
         else:
-            self._enqueue(self._show_block, position, texture)
+            self._enqueue(self._show_block, position, texture_coords)
 
     def _show_block(self, position, texture):
         """ Private implementation of the `show_block()` method.
@@ -217,7 +227,6 @@ class Scene(object):
         vertex_data = cube_vertices(x, y, z, 0.5)
         texture_data = list(texture)
         # create vertex list
-        # FIXME Maybe `add_indexed()` should be used instead
         self._shown_vlists[position] = self.batch.add(24, GL_QUADS, self.group,
                                                       ('v3f/static', vertex_data),
                                                       ('t2f/static', texture_data))
@@ -304,7 +313,14 @@ class Scene(object):
         func, args = self.queue.popleft()
         func(*args)
 
-    def process_queue(self):
+    def process_entire_queue(self):
+        """ Process the entire queue with no breaks.
+
+        """
+        while self.queue:
+            self._dequeue()
+
+    def process(self, dt):
         """ Process the entire queue while taking periodic breaks. This allows
         the game loop to run smoothly. The queue contains calls to
         _show_block() and _hide_block() so this method should be called if
@@ -314,10 +330,5 @@ class Scene(object):
         start = time.clock()
         while self.queue and time.clock() - start < 1.0 / self.fps:
             self._dequeue()
-
-    def process_entire_queue(self):
-        """ Process the entire queue with no breaks.
-
-        """
-        while self.queue:
-            self._dequeue()
+        ###############################
+        self.world.process(dt)
