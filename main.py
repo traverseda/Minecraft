@@ -2,6 +2,12 @@
 import math
 import asyncio
 
+try: #Use uvloop if it's available, python loop if we're in pypy
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
+
 from pyglet.gl import *
 from pyglet.window import key, mouse
 from gamescenes import *
