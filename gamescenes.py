@@ -1,10 +1,10 @@
-import random
 import pyglet
+import ecs
+import random
 import time
 
 from collections import deque
 from utilities.graphics import *
-from extlibs import esper
 
 
 GRASS = tex_coords((1, 0), (0, 1), (0, 0))
@@ -20,32 +20,32 @@ FACES = [(0, 1, 0),
          (0, 0, -1)]
 
 
-def generate_blocks():
+def generate_blocks(size=160):
 
-    generated_blocks = []
+    n = size // 2           # 1/2 width and height of world
+    s = 1                   # step size
+    y = 0                   # initial y height
 
-    n = 80  # 1/2 width and height of world
-    s = 1  # step size
-    y = 0  # initial y height
     for x in range(-n, n + 1, s):
         for z in range(-n, n + 1, s):
             # create a layer stone an grass everywhere.
-            generated_blocks.append(((x, y - 2, z), GRASS))
-            generated_blocks.append(((x, y - 3, z), STONE))
+            yield ((x, y - 2, z), GRASS)
+            yield ((x, y - 3, z), STONE)
+
             if x in (-n, n) or z in (-n, n):
                 # create outer walls.
                 for dy in range(-2, 3):
-                    generated_blocks.append(((x, y + dy, z), STONE))
+                    yield ((x, y + dy, z), STONE)
 
     # generate the hills randomly
     o = n - 10
     for _ in range(120):
-        a = random.randint(-o, o)  # x position of the hill
-        b = random.randint(-o, o)  # z position of the hill
-        c = -1  # base of the hill
-        h = random.randint(1, 6)  # height of the hill
-        s = random.randint(4, 8)  # 2 * s is the side length of the hill
-        d = 1  # how quickly to taper off the hills
+        a = random.randint(-o, o)       # x position of the hill
+        b = random.randint(-o, o)       # z position of the hill
+        c = -1                          # base of the hill
+        h = random.randint(1, 6)        # height of the hill
+        s = random.randint(4, 8)        # 2 * s is the side length of the hill
+        d = 1                           # how quickly to taper off the hills
         t = random.choice([GRASS, SAND, BRICK])
         for y in range(c, c + h):
             for x in range(a - s, a + s + 1):
@@ -54,9 +54,9 @@ def generate_blocks():
                         continue
                     if (x - 0) ** 2 + (z - 0) ** 2 < 5 ** 2:
                         continue
-                    generated_blocks.append(((x, y, z), t))
-            s -= d  # decrement side lenth so hills taper off
-    return generated_blocks
+                    yield ((x, y, z), t)
+
+            s -= d                      # decrement side lenth so hills taper off:
 
 
 class Scene(object):
@@ -64,7 +64,7 @@ class Scene(object):
         self.batch = batch
         self.texture = texture
         self.fps = fps
-        self.world = esper.World()
+        self.world = ecs.World()
 
         self.group = pyglet.graphics.TextureGroup(self.texture)
 
@@ -81,8 +81,7 @@ class Scene(object):
         # _show_block() and _hide_block() calls
         self.queue = deque()
 
-        random_blocks = generate_blocks()
-        for pos, texture in random_blocks:
+        for pos, texture in generate_blocks(50):
             self.add_block(pos, texture, immediate=False)
 
     def hit_test(self, position, vector, max_distance=8):

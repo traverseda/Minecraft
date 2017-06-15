@@ -1,7 +1,14 @@
 import time
 
-from extlibs import esper
 from functools import lru_cache
+
+
+class Processor:
+    def __init__(self):
+        self.world = None
+
+    def process(self, *args):
+        raise NotImplementedError
 
 
 class World:
