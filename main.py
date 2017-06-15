@@ -371,7 +371,6 @@ def on_draw():
 
 
 def update(dt):
-    print(dt)
     mainscene.process(dt)
 
     sector = sectorize(window.position)
