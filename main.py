@@ -25,9 +25,10 @@ WALKING_SPEED = 5
 FLYING_SPEED = 15
 
 GRAVITY = 20.0
+TERMINAL_VELOCITY = 50
+
 MAX_JUMP_HEIGHT = 1.0       # About the height of a block.
 JUMP_SPEED = math.sqrt(2 * GRAVITY * MAX_JUMP_HEIGHT)
-TERMINAL_VELOCITY = 50
 
 PLAYER_HEIGHT = 2
 
@@ -84,10 +85,6 @@ class GameWindow(pyglet.window.Window):
         self.num_keys = [key._1, key._2, key._3, key._4, key._5,
                          key._6, key._7, key._8, key._9, key._0]
 
-        # The label that is displayed in the top left of the canvas.
-        self.label = pyglet.text.Label('', font_name='Arial', font_size=18,
-                                       x=10, y=self.height - 10, anchor_x='left', anchor_y='top',
-                                       color=(0, 0, 0, 255))
 
     def set_exclusive_mouse(self, exclusive):
         """ If `exclusive` is True, the game will capture the mouse, if False
@@ -303,8 +300,6 @@ class GameWindow(pyglet.window.Window):
 
     def on_resize(self, width, height):
         """ Called when the window is resized to a new `width` and `height`. """
-        # label
-        self.label.y = height - 10
         # reticle
         if self.reticle:
             self.reticle.delete()
@@ -328,14 +323,6 @@ class GameWindow(pyglet.window.Window):
             pyglet.graphics.draw(24, GL_QUADS, ('v3f/static', vertex_data))
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
-    def draw_label(self):
-        """ Draw the label in the top left of the screen. """
-        x, y, z = self.position
-        self.label.text = '%02d (%.2f, %.2f, %.2f) %d / %d' % (
-            pyglet.clock.get_fps(), x, y, z,
-            len(self.scene._shown_vlists), len(self.scene.all_blocks))
-        self.label.draw()
-
     def draw_reticle(self):
         """ Draw the crosshairs in the center of the screen.
 
@@ -344,12 +331,13 @@ class GameWindow(pyglet.window.Window):
         self.reticle.draw(GL_LINES)
 
 
-batch = pyglet.graphics.Batch()
-texture = pyglet.resource.texture("texture.png")
-mainscene = Scene(batch=batch, texture=texture)
 setup_gl()
-window = GameWindow(scene=mainscene, width=960, height=580, caption='PyCraft', resizable=True)
-window.set_exclusive_mouse(True)
+
+# window = GameWindow(scene=None, width=960, height=580, caption='PyCraft', resizable=True)
+window = pyglet.window.Window(width=960, height=580, caption='PyCraft', resizable=True)
+batch = pyglet.graphics.Batch()
+mainscene = Scene(window=window, batch=batch)
+
 setup_gl()
 setup_fog()
 
@@ -359,53 +347,43 @@ def on_draw():
     window.clear()
 
     width, height = window.get_size()
-    set_3d(width, height, window.rotation, window.position)
+    set_3d(width, height, (0, 0), (0, 0, 0))
     glColor3d(1, 1, 1)
-    batch.draw()
 
-    window.draw_focused_block()
+    batch.draw()
+    # window.draw_focused_block()
 
     set_2d(width, height)
-    window.draw_label()
-    window.draw_reticle()
+    # window.draw_reticle()
 
 
 def update(dt):
     mainscene.process(dt)
 
-    sector = sectorize(window.position)
-    if sector != window.sector:
-        mainscene.change_sectors(window.sector, sector)
-        if window.sector is None:
-            mainscene.process_entire_queue()
-        window.sector = sector
-    m = 8
-    dt = min(dt, 0.2)
-
-    for _ in range(m):
-        dt8 = dt / m
-        # walking
-        speed = FLYING_SPEED if window.flying else WALKING_SPEED
-        d = dt8 * speed  # distance covered this tick.
-        dx, dy, dz = window.get_motion_vector()
-        # New position in space, before accounting for gravity.
-        dx, dy, dz = dx * d, dy * d, dz * d
-        # gravity
-        if not window.flying:
-            # Update your vertical speed: if you are falling, speed up until you
-            # hit terminal velocity; if you are jumping, slow down until you
-            # start falling.
-            window.dy -= dt8 * GRAVITY
-            window.dy = max(window.dy, -TERMINAL_VELOCITY)
-            dy += window.dy * dt8
-        # collisions
-        x, y, z = window.position
-        x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
-        window.position = (x, y, z)
-    window.switch_to()
-    window.dispatch_events()
-    window.dispatch_event('on_draw')
-    window.flip()
+    # m = 8
+    # dt = min(dt, 0.2)
+    #
+    # for _ in range(m):
+    #     dt8 = dt / m
+    #     # walking
+    #     speed = FLYING_SPEED if window.flying else WALKING_SPEED
+    #     d = dt8 * speed  # distance covered this tick.
+    #     dx, dy, dz = window.get_motion_vector()
+    #     # New position in space, before accounting for gravity.
+    #     dx, dy, dz = dx * d, dy * d, dz * d
+    #     # gravity
+    #     if not window.flying:
+    #         # Update your vertical speed: if you are falling, speed up until you
+    #         # hit terminal velocity; if you are jumping, slow down until you
+    #         # start falling.
+    #         window.dy -= dt8 * GRAVITY
+    #         window.dy = max(window.dy, -TERMINAL_VELOCITY)
+    #         dy += window.dy * dt8
+    #
+    #     # collisions
+    #     x, y, z = window.position
+    #     x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
+    #     window.position = (x, y, z)
 
 async def updateLoop():
     lastFrameTime=time.time()
