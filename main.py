@@ -1,4 +1,6 @@
+#! /usr/bin/env python3
 import math
+import asyncio
 
 from pyglet.gl import *
 from pyglet.window import key, mouse
@@ -363,6 +365,7 @@ def on_draw():
 
 
 def update(dt):
+    print(dt)
     mainscene.process(dt)
 
     sector = sectorize(window.position)
@@ -394,8 +397,19 @@ def update(dt):
         x, y, z = window.position
         x, y, z = window.collide((x + dx, y + dy, z + dz), PLAYER_HEIGHT)
         window.position = (x, y, z)
+    window.switch_to()
+    window.dispatch_events()
+    window.dispatch_event('on_draw')
+    window.flip()
 
+async def updateLoop():
+    lastFrameTime=time.time()
+    while True:
+        await asyncio.sleep(1.0/TICKS_PER_SEC)
+        update(time.time()-lastFrameTime)
+        lastFrameTime=time.time()
 
 if __name__ == '__main__':
-    pyglet.clock.schedule_interval(update, 1.0 / TICKS_PER_SEC)
-    pyglet.app.run()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(updateLoop())
+    loop.run_forever()
